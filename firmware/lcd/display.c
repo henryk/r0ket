@@ -97,6 +97,12 @@ static const struct display_macro INIT_N1600[] = {
 };
 
 static const struct display_macro PREPARE_N1600[] = {
+		{COMMAND_TYPE_CMD, 0x2A},
+		{COMMAND_TYPE_DATA, 0x00},
+		{COMMAND_TYPE_DATA, 98-1},
+		{COMMAND_TYPE_CMD, 0x2B},
+		{COMMAND_TYPE_DATA, 0},
+		{COMMAND_TYPE_DATA, 70-1},
 		{COMMAND_TYPE_CMD, 0x2C},
 };
 
