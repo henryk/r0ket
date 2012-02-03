@@ -64,9 +64,8 @@ static const struct display_macro PREPARE_N1200[] = {
 
 /* Decoded:
  * CMD 29: DISPON
- * CMD BA: Data order (1)
+ * CMD BA: Data order (DOR = 1)
  * CMD 11: sleep out
- * CMD 13: normal display mode on
  * CMD 37: set scroll entry point
  *   DAT 00:  scroll entry point
  * CMD 3A: interface pixel format
@@ -77,13 +76,16 @@ static const struct display_macro PREPARE_N1200[] = {
  * CMD 2B: page address set
  *   DAT 0    : ys
  *   DAT 70-1 : ye
+ * CMD 30: partial area definition
+ *   DAT 0    : aa1s
+ *   DAT 70   : aa1e
+ * CMD 12: partial mode on
  */
 static const struct display_macro INIT_N1600[] = {
 		{COMMAND_TYPE_CMD, 0x01, 10},
 		{COMMAND_TYPE_CMD, 0x29},
 		{COMMAND_TYPE_CMD, 0xBA},
 		{COMMAND_TYPE_CMD, 0x11},
-		{COMMAND_TYPE_CMD, 0x13},
 		{COMMAND_TYPE_CMD, 0x37},
 		{COMMAND_TYPE_DATA, 0x00},
 		{COMMAND_TYPE_CMD, 0x3A},
@@ -94,6 +96,10 @@ static const struct display_macro INIT_N1600[] = {
 		{COMMAND_TYPE_CMD, 0x2B},
 		{COMMAND_TYPE_DATA, 0},
 		{COMMAND_TYPE_DATA, 70-1},
+		{COMMAND_TYPE_CMD, 0x30},
+		{COMMAND_TYPE_DATA, 0},
+		{COMMAND_TYPE_DATA, 70},
+		{COMMAND_TYPE_CMD, 0x12},
 };
 
 static const struct display_macro PREPARE_N1600[] = {
