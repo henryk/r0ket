@@ -1,12 +1,59 @@
 #!/usr/bin/env python
 import Image, sys, os.path
 
+DEBUG = False
+
 def serialize_rgb565(seq):
     res = ""
     for d in seq:
         res = res + chr(d>>8)
         res = res + chr(d&0xff)
     return res
+
+def simple_rle(cumulated, current):
+    if len(cumulated) == 0:
+        return [ [current, 1] ]
+    
+    # Case 1: identical to last, increment
+    if cumulated[-1][0] == current:
+        cumulated[-1][1] = cumulated[-1][1] + 1
+    
+    # Case 2: not identical, open new
+    else:
+        cumulated.append( [current,  1] )
+    
+    return cumulated
+
+TRIVIAL_CUTOFF = 5
+
+def simplify_runs(cumulated, current):
+    if len(cumulated) == 0:
+        return [current]
+    
+    # Case 1: Make sure to output all not identical pixels
+    if current[0] == False:
+        if cumulated[-1][0] == False:
+            # Merge in to previous one
+            cumulated[-1] = [cumulated[-1][0],  cumulated[-1][1] + current[1]]
+        else:
+            # Simple append
+            cumulated.append(current)
+    
+    # Case 2: if identical, and last was not identical:
+    elif current[0] == True and cumulated[-1][0] == False:
+        if current[1] > TRIVIAL_CUTOFF:
+            # Suppressing this run saves more than it costs, do not output
+            cumulated.append(current)
+        else:
+            # Suppressing this run would not save anything, merge it into the previous
+            cumulated[-1] = [cumulated[-1][0],  cumulated[-1][1] + current[1]]
+    
+    # Don't know what to do, append it
+    else:
+        cumulated.append(current)
+
+    return cumulated
+    
 
 class FileConverter(object):
     def __init__(self, filename):
@@ -25,8 +72,11 @@ class FileConverter(object):
         curframe = 0
         while True:
             im = Image.open(self.filename)
-            for i in range(curframe+1): im.seek(i)
-            frame = im.convert("RGB")
+            try:
+                for i in range(curframe+1): im.seek(i)
+            except EOFError:
+                raise StopIteration
+            frame = im.convert("RGB").rotate(180)
             yield frame
             curframe = curframe + 1
     
@@ -34,34 +84,71 @@ class FileConverter(object):
         "Generate a stream of contiguous pixels, or repositioning instructions"
         
         skipped = True # At start of frame, explicitly place in 0,0 corner
+        if DEBUG: print
+        last_was_incomplete = False
+        last_x_area = None
         
-        for y in range(self.height-1, -1, -1):
+        for y in range(self.height):
             do_skip = True
+            identical = []
+            
+            
             # Compare line to line on screen and skip if possible
-            for x in range(self.width-1, -1, -1):
+            for x in range(self.width):
                 # pack rgb565 pixel
                 r, g, b = pixels[x, y]
                 
                 rgb565 =  ((r>>3)<<11) | ((g>>2)<<5) | ((b>>3)<<0)
-                if self.pixels_onscreen[x][y] != rgb565:
+                if self.pixels_onscreen[x][y] == rgb565:
+                    identical.append(True)
+                else:
+                    identical.append(False)
                     do_skip = False
-                    break
             
             if do_skip:
                 skipped = True
                 continue
             
-            if skipped:
-                skipped = False
-                yield (3, 0, self.height-1-y)
+            # Separate the "identical" mask into runs
+            identical_runs = reduce(simple_rle, identical, [])
             
-            for x in range(self.width-1, -1, -1):
-                # send rgb565 packed pixel
-                r, g, b = pixels[x, y]
-                
-                rgb565 =  ((r>>3)<<11) | ((g>>2)<<5) | ((b>>3)<<0)
-                yield [0, [rgb565]]
-                self.pixels_onscreen[x][y] = rgb565
+            # Simplify the runs and skip those that are too short
+            do_runs = reduce(simplify_runs, identical_runs, [])
+            
+            if last_was_incomplete:
+                skipped = True
+                last_was_incomplete = False
+            
+            x = 0
+            for run in do_runs:
+                if run[0]:
+                    # These are identical and don't need to be looked at, but increment x coordinate, also set skipped flag
+                    x = x + run[1]
+                    skipped = True
+                else:
+                    # Need to output these, prefix with window set if necessary
+                    if skipped:
+                        cords = (x, x + run[1] - 1, y, self.height-1)
+                        if last_x_area != cords[:2]:
+                            if DEBUG: print "[%i,%i,%i,%i]" % cords, 
+                            yield (3,) + cords
+                            last_x_area = cords[:2]
+                        skipped = False
+                        if cords[0] != 0 or cords[1] != self.width - 1:
+                            last_was_incomplete = True
+                    
+                    if DEBUG: print "%i:" % y, 
+                    for i in range(run[1]):
+                        # send rgb565 packed pixel
+                        r, g, b = pixels[x, y]
+                        if DEBUG: print x, 
+                        
+                        rgb565 =  ((r>>3)<<11) | ((g>>2)<<5) | ((b>>3)<<0)
+                        yield [0, [rgb565]]
+                        self.pixels_onscreen[x][y] = rgb565
+                        
+                        x = x + 1
+            if DEBUG: print
     
     def reduce_rle(self, cumulated, current):
         if len(cumulated) == 0:
@@ -143,7 +230,7 @@ class FileConverter(object):
                     instruction[1] = instruction[1] - rep
             
             elif instruction[0] == 3:
-                data = append_data(data, "\xC0" + chr(instruction[1]) + chr(instruction[2]) )
+                data = append_data(data, "\xC0" + "".join(map(chr, instruction[1:])) )
         
         if len(data) > 0:
             result.append(data)
@@ -169,7 +256,7 @@ class FileConverter(object):
         self.outfile = file(self.outname, "wb" )
         
         # Header
-        self.outfile.write("CANI\x01")
+        self.outfile.write("CANI\x02")
         self.outfile.write(chr(self.width))
         self.outfile.write(chr(self.height))
         
@@ -177,7 +264,7 @@ class FileConverter(object):
             self.output_frame(frame)
             
             # One frame sent, pause 60ms
-            self.outfile.write(chr(0x80 + 6))
+            self.outfile.write(chr(0x80 + 3))
     
 
 if __name__ == "__main__":

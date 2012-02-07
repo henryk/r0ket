@@ -42,7 +42,7 @@ char filename[24] = { '\0' };
 /*
  * File format:
  * 4 bytes magic: "CANI"
- * 1 byte version, 1
+ * 1 byte version, 2
  * 1 byte width
  * 1 byte height
  * sequence of directives:
@@ -54,9 +54,11 @@ char filename[24] = { '\0' };
  *      0xxx xxxx - xxx xxxx 16-bit words of RGB565 data follow, send to screen literally
  *      			  (note: 0000 0000 is valid padding)
  *      10xx xxxx - repeat following 16-bit (RGB 565) xx xxxx times.
- *      1100 0000 - next are 2 bytes of x,y coordinates, change pointer
- *                  	1 byte x
- *                  	1 byte y
+ *      1100 0000 - next are 4 bytes of x,y coordinates, change drawing area
+ *                  	1 byte xs
+ *                  	1 byte xe
+ *                  	1 byte ys
+ *                  	1 byte ye
  */
 
 struct pca_header {
@@ -80,7 +82,7 @@ int parseBitmap(FIL*inf) {
 	if(header.magic[0] != 'C' || header.magic[1] != 'A' || header.magic[2] != 'N' || header.magic[3] != 'I' )
 		FAIL("unsupported format");
 
-	if(header.version != 1) {
+	if(header.version != 2) {
 		FAIL("unsupported version");
 	}
 	w = header.width;
@@ -112,7 +114,7 @@ static void lcdWrite(uint8_t cd, uint8_t data) {
 	frame = SSP_SSP0DR;
 }
 
-static void lcd_position(int xs, int xe, int ys, int ye)
+static void lcd_window(int xs, int xe, int ys, int ye)
 {
 	lcdWrite(TYPE_CMD, 0x2A),
 	lcdWrite(TYPE_DATA, xs);
@@ -158,7 +160,7 @@ static void lcd_setup(void)
 	 * command for that is in the file
 	 */
 	lcd_select();
-	lcd_position(0, WIDTH-1, 0, HEIGHT-1);
+	lcd_window(0, WIDTH-1, 0, HEIGHT-1);
 	lcd_deselect();
 }
 
@@ -199,12 +201,14 @@ void handle_instructions(const uint8_t *buffer, int buffer_length)
 			pos+=2;
 
 		} else if( (buffer[pos] == 0xC0) ) {
-			/* reposition pointer */
+			/* change window */ /* FIXME check boundary*/
 			pos++;
-			int x = buffer[pos++];
-			int y = buffer[pos++];
+			int xs = buffer[pos++];
+			int xe = buffer[pos++];
+			int ys = buffer[pos++];
+			int ye = buffer[pos++];
 
-			lcd_position(x, WIDTH-1, y, HEIGHT-1);
+			lcd_window(xs, xe, ys, ye);
 		} // FIXME else-Exception
 	}
 }
