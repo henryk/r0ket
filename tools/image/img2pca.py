@@ -264,7 +264,7 @@ class FileConverter(object):
             self.output_frame(frame)
             
             # One frame sent, pause 60ms
-            self.outfile.write(chr(0x80 + 3))
+            self.outfile.write(chr(0x80 + 6))
     
 
 if __name__ == "__main__":
