@@ -3,7 +3,7 @@
  * USAGE:
  *  + Needs PCA (preprocessed color animation) files, see separate python tool to generate them
  *
- * -- NOTICE!! -- This thing will only work on colour displays!
+ * -- NOTICE!! -- This thing will only work on color displays!
  */
 
 #include <sysinit.h>
@@ -24,7 +24,7 @@
 #define WIDTH 98
 #define HEIGHT 70
 
-#define CONFFILE "COLORANI.CFG"
+#define CONFFILE "COLORPCA.CFG"
 
 /* a array  s start */
 #define GETINT(a,s) ((((uint32_t)((a)[(s)+3]))<<24)|(((uint32_t)((a)[(s)+2]))<<16)|(((uint32_t)((a)[(s)+1]))<<8)|((a)[s]))
@@ -297,11 +297,13 @@ void displayScreen(char*things[]) {
 }
 
 static char *info[] = {
-		"COLOR BITMAP",
+		"COLOR PCA",
 		"NICK ANIMATION",
-		"by",
-		" the_nihilant",
-		"28C3 DECT 3141", NULL };
+		"by henryk",
+		" @ploetzli.ch",
+		" DECT 5015",
+		"orig. code by",
+		" the_nihilant", NULL };
 
 static char *menu[] = {
 		" Info",
@@ -358,7 +360,6 @@ void writeconfig() {
 	f_close(&cf);
 }
 
-//shows *.bmp
 void ram_real(void) {
 	FIL file;
 	FRESULT res;
