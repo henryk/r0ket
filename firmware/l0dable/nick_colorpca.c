@@ -402,6 +402,7 @@ void ram_real(void) {
 			f_close(&file);
 		}
 
+		lcd_setup(); /* Defensively reset the window */
 		if (key == BTN_ENTER) {
 			do {
 				menuselection = menuhandling();
