@@ -51,6 +51,7 @@ static const struct display_macro INIT_N1200[] = {
 		{COMMAND_TYPE_CMD, 0xE2, 5},
 		{COMMAND_TYPE_CMD, 0xAF},
 		{COMMAND_TYPE_CMD, 0xA1},
+		{COMMAND_TYPE_CMD, 0xA4},
 		{COMMAND_TYPE_CMD, 0x2F},
 		{COMMAND_TYPE_CMD, 0xB0},
 		{COMMAND_TYPE_CMD, 0x10},
