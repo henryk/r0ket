@@ -22,8 +22,14 @@ void msc_menu(void){
     lcdClear();
     lcdPrintln("MSC Enabled.");
     lcdRefresh();
+    usbmsc_request_exit = 0;
     usbMSCInit();
-    while(!getInputRaw())delayms(10);
+    while(!getInputRaw()) {
+        delayms(10);
+        if(usbmsc_request_exit) {
+            break;
+        }
+    }
     DoString(0,16,"MSC Disabled.");
     usbMSCOff();
     fsReInit();
