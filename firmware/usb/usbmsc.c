@@ -15,7 +15,7 @@ ROM ** rom = (ROM **)0x1fff1ff8;
 volatile char usbmsc_request_exit = 0;
 char usbMSCenabled=0;
 
-#define USB_COMMAND_BUFFER 0x10000110
+#define USB_COMMAND_BUFFER 0x100000D0
 #define USB_COMMAND_MSC_OPCODE (USB_COMMAND_BUFFER+0xF)
 #define USB_COMMAND_MSC_STARTSTOP_FLAGS (USB_COMMAND_BUFFER+0x13)
 
