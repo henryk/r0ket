@@ -12,7 +12,12 @@
 USB_DEV_INFO DeviceInfo;
 MSC_DEVICE_INFO MscDevInfo;
 ROM ** rom = (ROM **)0x1fff1ff8;
+volatile char usbmsc_request_exit = 0;
 char usbMSCenabled=0;
+
+#define USB_COMMAND_BUFFER 0x10000110
+#define USB_COMMAND_MSC_OPCODE (USB_COMMAND_BUFFER+0xF)
+#define USB_COMMAND_MSC_STARTSTOP_FLAGS (USB_COMMAND_BUFFER+0x13)
 
 void usbMSCWrite(uint32_t offset, uint8_t src[], uint32_t length) {
     dataflash_random_write(src, offset, length);
@@ -57,6 +62,9 @@ void usbMSCInit(void) {
   // workaround for long connect delay
   *((uint32_t *)(0x10000054)) = 0x0;
 
+  // Clear memory to prevent the exit detection below from reading stale packets
+  *(uint8_t*)(USB_COMMAND_MSC_OPCODE) = 0;
+
   // HID Device Info
   volatile int n;
   MscDevInfo.idVendor = USB_VENDOR_ID;
@@ -91,6 +99,12 @@ void usbMSCInit(void) {
 #if CFG_USBMSC
 void USB_IRQHandler() {
   (*rom)->pUSBD->isr();
+
+  if((*(uint32_t*)USB_COMMAND_BUFFER) == 0x43425355  /* Sanity check: USBC is where we expect it */
+		  && (*(uint8_t*)USB_COMMAND_MSC_OPCODE) == 0x1B /* Command was Start Stop Unit */
+		  && ((*(uint8_t*)USB_COMMAND_MSC_STARTSTOP_FLAGS)&0x03) == 0x02 ) { /* LOEJ = True, Start = False -> Eject medium */
+	  usbmsc_request_exit = 1;
+  }
 }
 #endif
 
